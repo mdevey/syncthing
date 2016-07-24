@@ -602,12 +602,3 @@ type noMtimeRepo struct{}
 func (noMtimeRepo) GetMtime(relPath string, mtime time.Time) time.Time {
 	return mtime
 }
-
-// returns true if the times are equal, +/- the specified granularity
-func timesEqual(a, b time.Time, granularity time.Duration) bool {
-	diff := a.Sub(b)
-	if diff >= 0 {
-		return diff <= granularity
-	}
-	return -diff <= granularity
-}
