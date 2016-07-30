@@ -215,6 +215,9 @@ func (cfg *Configuration) prepare(myID protocol.DeviceID) error {
 	if cfg.Version == 14 {
 		convertV14V15(cfg)
 	}
+	if cfg.Version == 15 {
+		convertV15V16(cfg)
+	}
 
 	// Build a list of available devices
 	existingDevices := make(map[protocol.DeviceID]bool)
