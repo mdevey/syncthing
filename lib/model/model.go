@@ -466,7 +466,19 @@ func (m *Model) NeedSize(folder string) (nfiles int, bytes int64) {
 	m.fmut.RLock()
 	defer m.fmut.RUnlock()
 	if rf, ok := m.folderFiles[folder]; ok {
+		ignores := m.folderIgnores[folder]
+		cfg := m.folderCfgs[folder]
 		rf.WithNeedTruncated(protocol.LocalDeviceID, func(f db.FileIntf) bool {
+			if cfg.IgnoreDelete && f.IsDeleted() {
+				return true
+			}
+			if !symlinks.Supported && f.IsSymlink() {
+				return true
+			}
+			if ignores.Match(f.FileName()).IsIgnored() {
+				return true
+			}
+
 			fs, de, by := sizeOfFile(f)
 			nfiles += fs + de
 			bytes += by
@@ -526,7 +538,19 @@ func (m *Model) NeedFolderFiles(folder string, page, perpage int) ([]db.FileInfo
 	}
 
 	rest = make([]db.FileInfoTruncated, 0, perpage)
+	ignores := m.folderIgnores[folder]
+	cfg := m.folderCfgs[folder]
 	rf.WithNeedTruncated(protocol.LocalDeviceID, func(f db.FileIntf) bool {
+		if cfg.IgnoreDelete && f.IsDeleted() {
+			return true
+		}
+		if !symlinks.Supported && f.IsSymlink() {
+			return true
+		}
+		if ignores.Match(f.FileName()).IsIgnored() {
+			return true
+		}
+
 		total++
 		if skip > 0 {
 			skip--
@@ -556,10 +580,8 @@ func (m *Model) Index(deviceID protocol.DeviceID, folder string, fs []protocol.F
 	}
 
 	m.fmut.RLock()
-	cfg := m.folderCfgs[folder]
 	files, ok := m.folderFiles[folder]
 	runner := m.folderRunners[folder]
-	ignores := m.folderIgnores[folder]
 	m.fmut.RUnlock()
 
 	if runner != nil {
@@ -576,7 +598,6 @@ func (m *Model) Index(deviceID protocol.DeviceID, folder string, fs []protocol.F
 	m.deviceDownloads[deviceID].Update(folder, makeForgetUpdate(fs))
 	m.pmut.RUnlock()
 
-	fs = filterIndex(folder, fs, cfg.IgnoreDelete, ignores)
 	files.Replace(deviceID, fs)
 
 	events.Default.Log(events.RemoteIndexUpdated, map[string]interface{}{
@@ -599,9 +620,7 @@ func (m *Model) IndexUpdate(deviceID protocol.DeviceID, folder string, fs []prot
 
 	m.fmut.RLock()
 	files := m.folderFiles[folder]
-	cfg := m.folderCfgs[folder]
 	runner, ok := m.folderRunners[folder]
-	ignores := m.folderIgnores[folder]
 	m.fmut.RUnlock()
 
 	if !ok {
@@ -612,7 +631,6 @@ func (m *Model) IndexUpdate(deviceID protocol.DeviceID, folder string, fs []prot
 	m.deviceDownloads[deviceID].Update(folder, makeForgetUpdate(fs))
 	m.pmut.RUnlock()
 
-	fs = filterIndex(folder, fs, cfg.IgnoreDelete, ignores)
 	files.Update(deviceID, fs)
 
 	events.Default.Log(events.RemoteIndexUpdated, map[string]interface{}{

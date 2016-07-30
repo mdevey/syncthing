@@ -29,8 +29,6 @@ import (
 	"github.com/syncthing/syncthing/lib/versioner"
 )
 
-// TODO: Stop on errors
-
 func init() {
 	folderFactories[config.FolderTypeReadWrite] = newRWFolder
 }
@@ -84,14 +82,16 @@ type rwFolder struct {
 	dir              string
 	versioner        versioner.Versioner
 	ignorePerms      bool
-	copiers          int
-	pullers          int
 	order            config.PullOrder
 	maxConflicts     int
 	sleep            time.Duration
 	pause            time.Duration
 	allowSparse      bool
 	checkFreeSpace   bool
+	ignoreDelete     bool
+
+	copiers int
+	pullers int
 
 	queue       *jobQueue
 	dbUpdates   chan dbUpdateJob
@@ -115,6 +115,7 @@ func newRWFolder(model *Model, cfg config.FolderConfiguration, ver versioner.Ver
 
 		virtualMtimeRepo: db.NewVirtualMtimeRepo(model.db, cfg.ID),
 		dir:              cfg.Path(),
+		versioner:        ver,
 		ignorePerms:      cfg.IgnorePerms,
 		copiers:          cfg.Copiers,
 		pullers:          cfg.Pullers,
@@ -122,7 +123,7 @@ func newRWFolder(model *Model, cfg config.FolderConfiguration, ver versioner.Ver
 		maxConflicts:     cfg.MaxConflicts,
 		allowSparse:      !cfg.DisableSparseFiles,
 		checkFreeSpace:   cfg.MinDiskFreePct != 0,
-		versioner:        ver,
+		ignoreDelete:     cfg.IgnoreDelete,
 
 		queue:       newJobQueue(),
 		pullTimer:   time.NewTimer(time.Second),
@@ -425,8 +426,13 @@ func (f *rwFolder) pullerIteration(ignores *ignore.Matcher) int {
 
 		file := intf.(protocol.FileInfo)
 
+		if f.ignoreDelete && file.IsDeleted() {
+			return true
+		}
+		if !symlinks.Supported && file.IsSymlink() {
+			return true
+		}
 		if ignores.Match(file.Name).IsIgnored() {
-			// This is an ignored file. Skip it, continue iteration.
 			return true
 		}
 
