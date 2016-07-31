@@ -1320,6 +1320,7 @@ angular.module('syncthing.core')
 
         $scope.addFolder = function () {
             $scope.currentFolder = {
+                path: $scope.config.options.parentFolder,
                 selectedDevices: {},
                 type: "readwrite",
                 rescanIntervalS: 60,

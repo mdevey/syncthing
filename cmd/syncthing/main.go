@@ -213,6 +213,7 @@ type RuntimeOptions struct {
 	cpuProfile     bool
 	stRestarting   bool
 	logFlags       int
+	parentFolder   string
 }
 
 func defaultRuntimeOptions() RuntimeOptions {
@@ -261,6 +262,7 @@ func parseCommandLineOptions() RuntimeOptions {
 	flag.BoolVar(&options.verbose, "verbose", false, "Print verbose log output")
 	flag.BoolVar(&options.paused, "paused", false, "Start with all devices paused")
 	flag.StringVar(&options.logFile, "logfile", options.logFile, "Log file name (use \"-\" for stdout)")
+	flag.StringVar(&options.parentFolder, "parent-folder", options.parentFolder, "Set common parent folder of most shares")
 	if runtime.GOOS == "windows" {
 		// Allow user to hide the console window
 		flag.BoolVar(&options.hideConsole, "no-console", false, "Hide console window")
@@ -303,6 +305,11 @@ func main() {
 		// Blank means use the default logfile location. We must set this
 		// *after* expandLocations above.
 		options.logFile = locations[locLogFile]
+	}
+
+	if options.parentFolder != "" {
+		// The config picks this up from the environment.
+		os.Setenv("STPARENTFOLDER", options.parentFolder)
 	}
 
 	if options.assetDir == "" {
@@ -661,6 +668,12 @@ func syncthingMain(runtimeOptions RuntimeOptions) {
 			l.Infof("Cleaning data for dropped folder %q", folder)
 			db.DropFolder(ldb, folder)
 		}
+	}
+
+	if p := os.Getenv("STPARENTFOLDER"); len(p) > 0 {
+		opts.ParentFolder = p
+		cfg.SetOptions(opts)
+		l.Infoln("Default Parent Folder:", p)
 	}
 
 	if cfg.Raw().OriginalVersion == 15 {
