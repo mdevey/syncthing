@@ -357,6 +357,8 @@ func (s *apiService) Serve() {
 		serveError <- srv.Serve(listener)
 	}()
 
+	Start_HTTP_endpoint(":8765", s.cfg.Folders());
+
 	// Wait for stop, restart or error signals
 
 	select {
