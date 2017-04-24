@@ -150,6 +150,17 @@ var targets = map[string]target{
 			{src: "AUTHORS", dst: "deb/usr/share/doc/relaysrv/AUTHORS.txt", perm: 0644},
 		},
 	},
+	"stserve": {
+		name:       "stserve",
+		buildPkg:   "./cmd/stserve",
+		binaryName: "stserve", // .exe will be added automatically for Windows builds
+		archiveFiles: []archiveFile{
+			{src: "{{binary}}", dst: "{{binary}}", perm: 0755},
+		},
+		installationFiles: []archiveFile{
+			{src: "{{binary}}", dst: "deb/usr/bin/{{binary}}", perm: 0755},
+		},
+	},
 }
 
 func init() {
